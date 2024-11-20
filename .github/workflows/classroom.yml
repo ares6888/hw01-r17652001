@@ -57,7 +57,7 @@ jobs:
           cp temp-tests/test_assignment.py .
 
       # Step 6: Run tests and check for pass/fail
-      - name: Run tests and calculate score
+      - name: Run tests and calculate score 1
         id: test_step
         run: |
           source .venv/bin/activate
