@@ -1,0 +1,72 @@
+name: Autograding Tests
+'on': [push, pull_request]
+
+jobs:
+  autograding:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout student code
+        uses: actions/checkout@v4
+
+      - name: Download teacher's test repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_PAT_TOKEN }}
+        run: |
+          git clone https://${{ secrets.ORG_PAT_TOKEN }}@github.com/IcensRAGHomework/assignment-tests-.git temp-tests
+
+      # Step 1: Cache requirements.txt
+      - name: Cache requirements.txt
+        id: cache-requirements
+        uses: actions/cache@v3
+        with:
+          path: requirements.txt
+          key: ${{ runner.os }}-requirements-${{ hashFiles('requirements.txt') }}
+
+      # Step 2: Cache Python environment
+      - name: Cache Python environment
+        id: cache-env
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: ${{ runner.os }}-env-${{ steps.cache-requirements.outputs.cache-hit }}
+          restore-keys: |
+            ${{ runner.os }}-env-
+
+      # Step 3: Install dependencies if needed
+      - name: Install dependencies
+        if: steps.cache-env.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Save updated Python environment to cache
+      - name: Save updated Python environment
+        if: steps.cache-env.outputs.cache-hit != 'true'
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: ${{ runner.os }}-env-${{ steps.cache-requirements.outputs.cache-hit }}
+
+      # Step 5: Prepare tests
+      - name: Prepare tests
+        run: |
+          source .venv/bin/activate
+          cp temp-tests/test_assignment.py .
+
+      # Step 6: Run tests and check for pass/fail
+      - name: Run tests and calculate score
+        id: test_step
+        run: |
+          source .venv/bin/activate
+          if pytest test_assignment.py::test_add; then
+            echo "SCORE=30" >> $GITHUB_ENV
+          else
+            echo "SCORE=0" >> $GITHUB_ENV
+          fi
+
+      # Step 7: Display score
+      - name: Display score
+        run: echo "Final Score:${{ env.SCORE }}"
